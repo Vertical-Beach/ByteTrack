@@ -6,6 +6,7 @@ from yolox.utils import fuse_model, get_model_info, postprocess
 
 import torch
 import cv2
+import numpy as np
 
 class Predictor(object):
     def __init__(
@@ -117,6 +118,7 @@ class YOLOv4Predictor(Predictor):
             outputs.append([left, top, right, bottom, confidence, class_id])
         # wrap as batched list
         outputs = [outputs]
+        outputs = np.array(outputs)
         return outputs, img_info
 
 

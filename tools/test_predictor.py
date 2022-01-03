@@ -95,7 +95,6 @@ def draw_bboxes(img, outputs, img_info):
         scores = outputs[:, 4] * outputs[:, 5]
         bboxes = outputs[:, :4]
     else:
-        outputs = np.array(outputs)
         # darknet
         # (x1, y1, x2, y2, bbox_conf, class_pred)
         scores = outputs[:, 4]

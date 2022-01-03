@@ -224,7 +224,6 @@ def detect_image(network, class_names, image, thresh=.5, hier_thresh=.5, nms=.45
                                    thresh, hier_thresh, None, 0, pnum, 0)
     num = pnum[0]
     if nms:
-        print("nms!!!", nms)
         do_nms_sort(detections, num, len(class_names), nms)
     predictions = remove_negatives(detections, class_names, num)
     predictions = decode_detection(predictions)
