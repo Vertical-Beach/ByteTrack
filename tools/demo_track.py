@@ -196,15 +196,16 @@ def image_demo(predictor, vis_folder, current_time, args):
         logger.info(f"save results to {res_file}")
 
 
-def imageflow_demo(predictor, vis_folder, current_time, args):
-    cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
+def imageflow_demo(predictor, vis_folder, current_time, args, save_folder=None):
+    cap = cv2.VideoCapture(args.path if "video" in args.demo else args.camid)
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)  # float
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)  # float
     fps = cap.get(cv2.CAP_PROP_FPS)
     timestamp = time.strftime("%Y_%m_%d_%H_%M_%S", current_time)
-    save_folder = osp.join(vis_folder, timestamp)
+    if save_folder is None:
+        save_folder = osp.join(vis_folder, timestamp)
     os.makedirs(save_folder, exist_ok=True)
-    if args.demo == "video":
+    if "video" in args.demo:
         save_path = osp.join(save_folder, args.path.split("/")[-1])
     else:
         save_path = osp.join(save_folder, "camera.mp4")
@@ -225,7 +226,7 @@ def imageflow_demo(predictor, vis_folder, current_time, args):
         ret_val, frame = cap.read()
         if ret_val:
             outputs, img_info = predictor.inference(frame, timer)
-            if outputs[0] is not None:
+            if outputs[0] is not None and len(outputs[0]) > 0:
                 tracking_results = []
                 for tracker in trackers:
                     target_class = tracker.target_class
@@ -267,7 +268,7 @@ def imageflow_demo(predictor, vis_folder, current_time, args):
         frame_id += 1
 
     if args.save_result:
-        res_file = osp.join(vis_folder, f"{timestamp}.txt")
+        res_file = osp.join(save_folder, args.path.split("/")[-1].replace(".mp4", ".txt"))
         with open(res_file, 'w') as f:
             f.writelines(results)
         logger.info(f"save results to {res_file}")
@@ -299,6 +300,17 @@ def main(exp, args):
         image_demo(predictor, vis_folder, current_time, args)
     elif args.demo == "video" or args.demo == "webcam":
         imageflow_demo(predictor, vis_folder, current_time, args)
+    elif args.demo == "video_multiple":
+        import glob
+        videos = glob.glob(osp.join(args.path, "*.mp4"))
+        logger.info(f"Found {len(videos)} videos")
+        timestamp = time.strftime("%Y_%m_%d_%H_%M_%S", current_time)
+        save_base_folder = osp.join(vis_folder, timestamp)
+        for video in videos:
+            print(video)
+            args.path = video
+            save_folder = osp.join(save_base_folder, osp.basename(video).replace('.mp4', ''))
+            imageflow_demo(predictor, vis_folder, current_time, args, save_folder)
 
 
 if __name__ == "__main__":

@@ -167,7 +167,6 @@ class BYTETracker(object):
 
         if isinstance(output_results, torch.Tensor):
             output_results = output_results.cpu().numpy()
-
         if output_results.shape[1] == 6:
             # (x1, y1, x2, y2, bbox_conf, class_pred)
             # extract results where class_pred is target_class
