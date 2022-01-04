@@ -143,7 +143,7 @@ class STrack(BaseTrack):
 
 
 class BYTETracker(object):
-    def __init__(self, args, frame_rate=30):
+    def __init__(self, args, target_class, frame_rate=30, image_keep_ratio=True):
         self.tracked_stracks = []  # type: list[STrack]
         self.lost_stracks = []  # type: list[STrack]
         self.removed_stracks = []  # type: list[STrack]
@@ -155,6 +155,8 @@ class BYTETracker(object):
         self.buffer_size = int(frame_rate / 30.0 * args.track_buffer)
         self.max_time_lost = self.buffer_size
         self.kalman_filter = KalmanFilter()
+        self.image_keep_ratio = image_keep_ratio
+        self.target_class = target_class
 
     def update(self, output_results, img_info, img_size):
         self.frame_id += 1
@@ -163,16 +165,33 @@ class BYTETracker(object):
         lost_stracks = []
         removed_stracks = []
 
-        if output_results.shape[1] == 5:
+        if isinstance(output_results, torch.Tensor):
+            output_results = output_results.cpu().numpy()
+        if output_results.shape[1] == 6:
+            # (x1, y1, x2, y2, bbox_conf, class_pred)
+            # extract results where class_pred is target_class
+            output_results = output_results[output_results[:, 5] == self.target_class]
             scores = output_results[:, 4]
             bboxes = output_results[:, :4]
-        else:
-            output_results = output_results.cpu().numpy()
+        elif output_results.shape[1] == 7:
+            # (x1, y1, x2, y2, obj_conf, class_conf, class_pred)
+            # extract results where class_pred is target_class
+            output_results = output_results[output_results[:, 6] == self.target_class]
             scores = output_results[:, 4] * output_results[:, 5]
             bboxes = output_results[:, :4]  # x1y1x2y2
+        else:
+            raise Exception("output_results.shape[1] must be 6 or 7")
         img_h, img_w = img_info[0], img_info[1]
-        scale = min(img_size[0] / float(img_h), img_size[1] / float(img_w))
-        bboxes /= scale
+        if self.image_keep_ratio:
+            scale = min(img_size[0] / float(img_h), img_size[1] / float(img_w))
+            bboxes /= scale
+        else:
+            scale_h = img_size[0] / float(img_h)
+            scale_w = img_size[1] / float(img_w)
+            bboxes[:, 0] /= scale_w
+            bboxes[:, 1] /= scale_h
+            bboxes[:, 2] /= scale_w
+            bboxes[:, 3] /= scale_h
 
         remain_inds = scores > self.args.track_thresh
         inds_low = scores > 0.1
